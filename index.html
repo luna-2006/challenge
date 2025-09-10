@@ -91,6 +91,16 @@
       margin: 5px 0;
     }
 
+    #animal-image {
+      width: 100%;
+      max-height: 250px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      border: 2px solid #ff8c42;
+      display: none;
+    }
+
     #map {
       width: 100%;
       height: 300px;
@@ -127,6 +137,39 @@
       border-left: 5px solid #ff3c38;
     }
 
+    /* Add Animal Form */
+    .add-animal {
+      background: #fff0e1;
+      padding: 15px;
+      border-radius: 10px;
+      border: 2px solid #ff8c42;
+      margin-top: 20px;
+    }
+
+    .add-animal input, .add-animal select {
+      width: 100%;
+      padding: 8px;
+      margin: 6px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    .add-animal button {
+      background: #ff3c38;
+      color: white;
+      padding: 10px;
+      width: 100%;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .add-animal button:hover {
+      background: #d62828;
+    }
+
     footer {
       text-align: center;
       padding: 10px;
@@ -147,6 +190,26 @@
   <div class="sidebar">
     <h2>Rescued Animals</h2>
     <div id="animal-list"></div>
+
+    <!-- Add Animal Form -->
+    <div class="add-animal">
+      <h2>Add New Animal</h2>
+      <input type="text" id="new-name" placeholder="Name">
+      <input type="text" id="new-species" placeholder="Species">
+      <select id="new-status">
+        <option value="Rescued">Rescued</option>
+        <option value="Injured">Injured</option>
+        <option value="Need Rescue">Need Rescue</option>
+        <option value="Under Treatment">Under Treatment</option>
+        <option value="Need Care">Need Care</option>
+      </select>
+      <input type="text" id="new-health" placeholder="Health Issues">
+      <input type="date" id="new-date">
+      <input type="text" id="new-lat" placeholder="Latitude">
+      <input type="text" id="new-lng" placeholder="Longitude">
+      <input type="text" id="new-image" placeholder="Image URL">
+      <button onclick="addAnimal()">Add Animal</button>
+    </div>
   </div>
 
   <!-- Main Content -->
@@ -166,6 +229,9 @@
       <p><strong>Location:</strong> -</p>
     </div>
 
+    <!-- Tracking Image -->
+    <img id="animal-image" alt="Animal Image">
+
     <h3>Tracking</h3>
     <div id="map"></div>
 
@@ -182,8 +248,8 @@
 </footer>
 
 <script>
-  // Animal Data
-  const animals = [
+  // Animal Data (with images)
+  let animals = [
     {
       id: 1,
       name: "Leo",
@@ -191,7 +257,8 @@
       status: "Under Care",
       health: "Leg Injury - Recovering",
       rescueDate: "2025-09-01",
-      location: {lat: 34.05, lng: -118.25}
+      location: {lat: 34.05, lng: -118.25},
+      image: "https://upload.wikimedia.org/wikipedia/commons/7/73/Lion_waiting_in_Namibia.jpg"
     },
     {
       id: 2,
@@ -200,43 +267,14 @@
       status: "Need Care",
       health: "Tusks Damaged - Needs Monitoring",
       rescueDate: "2025-08-20",
-      location: {lat: 28.61, lng: 77.20}
-    },
-    {
-      id: 3,
-      name: "Rocky",
-      species: "Dog",
-      status: "Rescued",
-      health: "Previously Malnourished - Healthy",
-      rescueDate: "2025-07-15",
-      location: {lat: 40.71, lng: -74.00}
-    },
-    {
-      id: 4,
-      name: "Kiki",
-      species: "Parrot",
-      status: "Injured",
-      health: "Wing Injury - Healing",
-      rescueDate: "2025-06-05",
-      location: {lat: -33.87, lng: 151.21}
-    },
-    {
-      id: 5,
-      name: "Simba",
-      species: "Tiger",
-      status: "Need Rescue",
-      health: "Trapped - Needs Immediate Help",
-      rescueDate: "2025-09-05",
-      location: {lat: 19.07, lng: 72.87}
+      location: {lat: 28.61, lng: 77.20},
+      image: "https://upload.wikimedia.org/wikipedia/commons/3/37/African_Bush_Elephant.jpg"
     }
   ];
 
   const rescuerThoughts = [
     "Leo was scared at first, but now he’s playful and healing well.",
-    "Maya needs constant monitoring but is safe now.",
-    "Rocky found a loving family and is healthier than ever!",
-    "Kiki is under treatment and improving.",
-    "Simba needs urgent rescue from the wild."
+    "Maya needs constant monitoring but is safe now."
   ];
 
   const animalList = document.getElementById("animal-list");
@@ -244,19 +282,23 @@
   const animalInfo = document.getElementById("animal-info");
   const mapDiv = document.getElementById("map");
   const thoughtsList = document.getElementById("thoughts-list");
+  const animalImage = document.getElementById("animal-image");
 
   let selectedAnimal = null;
   let marker = null;
   let map = null;
 
-  // Generate Animal Cards
-  animals.forEach(animal => {
-    const card = document.createElement("div");
-    card.className = "animal-card";
-    card.innerHTML = `<h3>${animal.name}</h3><p>${animal.species}</p>`;
-    card.onclick = () => showAnimalDetails(animal);
-    animalList.appendChild(card);
-  });
+  // Function to render animals
+  function renderAnimals() {
+    animalList.innerHTML = "";
+    animals.forEach(animal => {
+      const card = document.createElement("div");
+      card.className = "animal-card";
+      card.innerHTML = `<h3>${animal.name}</h3><p>${animal.species}</p>`;
+      card.onclick = () => showAnimalDetails(animal);
+      animalList.appendChild(card);
+    });
+  }
 
   // Show details for selected animal
   function showAnimalDetails(animal) {
@@ -269,6 +311,11 @@
       <p><strong>Rescue Date:</strong> ${animal.rescueDate}</p>
       <p><strong>Location:</strong> ${animal.location.lat.toFixed(2)}, ${animal.location.lng.toFixed(2)}</p>
     `;
+
+    // Show tracking image
+    animalImage.src = animal.image;
+    animalImage.style.display = "block";
+
     initMap(animal.location.lat, animal.location.lng);
   }
 
@@ -284,27 +331,16 @@
       map: map,
       title: selectedAnimal.name
     });
-
-    setInterval(() => {
-      if (selectedAnimal) {
-        selectedAnimal.location.lat += (Math.random() - 0.5) * 0.01;
-        selectedAnimal.location.lng += (Math.random() - 0.5) * 0.01;
-        marker.setPosition(selectedAnimal.location);
-        map.setCenter(selectedAnimal.location);
-        animalInfo.querySelector("p:last-child").innerHTML =
-          `<strong>Location:</strong> ${selectedAnimal.location.lat.toFixed(2)}, ${selectedAnimal.location.lng.toFixed(2)}`;
-      }
-    }, 5000);
   }
 
   // Rescue Statistics Graph
   const ctx = document.getElementById("rescueChart");
-  new Chart(ctx, {
+  let rescueChart = new Chart(ctx, {
     type: "doughnut",
     data: {
       labels: ["Rescued", "Injured", "Need Rescue", "Under Treatment", "Need Care"],
       datasets: [{
-        data: [15, 8, 5, 7, 4],
+        data: [1, 0, 0, 1, 0],
         backgroundColor: ["#ff8c42", "#ff3c38", "#ffd166", "#6a994e", "#3a86ff"],
         hoverOffset: 10
       }]
@@ -318,6 +354,41 @@
     }
   });
 
+  // Update graph counts
+  function updateChart() {
+    const counts = { "Rescued": 0, "Injured": 0, "Need Rescue": 0, "Under Treatment": 0, "Need Care": 0 };
+    animals.forEach(animal => counts[animal.status]++);
+    rescueChart.data.datasets[0].data = Object.values(counts);
+    rescueChart.update();
+  }
+
+  // Add New Animal
+  function addAnimal() {
+    const newAnimal = {
+      id: animals.length + 1,
+      name: document.getElementById("new-name").value,
+      species: document.getElementById("new-species").value,
+      status: document.getElementById("new-status").value,
+      health: document.getElementById("new-health").value,
+      rescueDate: document.getElementById("new-date").value,
+      location: {
+        lat: parseFloat(document.getElementById("new-lat").value),
+        lng: parseFloat(document.getElementById("new-lng").value)
+      },
+      image: document.getElementById("new-image").value
+    };
+
+    if (!newAnimal.name || !newAnimal.species || isNaN(newAnimal.location.lat) || isNaN(newAnimal.location.lng)) {
+      alert("Please fill all required fields with valid values!");
+      return;
+    }
+
+    animals.push(newAnimal);
+    renderAnimals();
+    updateChart();
+    alert(`${newAnimal.name} has been added!`);
+  }
+
   // Show Rescuer Thoughts
   rescuerThoughts.forEach(thought => {
     const div = document.createElement("div");
@@ -325,6 +396,10 @@
     div.textContent = thought;
     thoughtsList.appendChild(div);
   });
+
+  // Initial render
+  renderAnimals();
+  updateChart();
 </script>
 
 <!-- Google Maps API -->
