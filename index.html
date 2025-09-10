@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Animal Rescuing System Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #fff3e6;
+      color: #333;
+    }
+
+    header {
+      background: linear-gradient(90deg, #ff8c42, #ff3c38);
+      color: white;
+      padding: 15px 25px;
+      text-align: center;
+      font-size: 26px;
+      font-weight: bold;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      height: calc(100vh - 70px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: #ffd166;
+      padding: 20px;
+      overflow-y: auto;
+      border-right: 4px solid #ff8c42;
+    }
+
+    .sidebar h2 {
+      font-size: 20px;
+      margin-bottom: 15px;
+      color: #d62828;
+    }
+
+    .animal-card {
+      background: #ffedd5;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.3s;
+      border-left: 6px solid #ff8c42;
+    }
+
+    .animal-card:hover {
+      background: #ffe0b3;
+    }
+
+    .animal-card h3 {
+      margin: 0;
+      font-size: 18px;
+      color: #d62828;
+    }
+
+    .animal-card p {
+      margin: 5px 0 0;
+      font-size: 14px;
+      color: #333;
+    }
+
+    /* Main details */
+    .details {
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .details h2 {
+      margin-top: 0;
+      color: #d62828;
+    }
+
+    .info {
+      margin-bottom: 20px;
+      background: #fff0e1;
+      padding: 15px;
+      border-radius: 10px;
+      border: 2px solid #ff8c42;
+    }
+
+    .info p {
+      margin: 5px 0;
+    }
+
+    #map {
+      width: 100%;
+      height: 300px;
+      border-radius: 10px;
+      border: 2px solid #ff3c38;
+      margin-bottom: 20px;
+    }
+
+    /* Graph Section */
+    .graph-section {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    canvas {
+      max-width: 600px;
+      margin: auto;
+    }
+
+    /* Rescuer Thoughts */
+    .thoughts {
+      background: #ffe5d9;
+      padding: 15px;
+      border-radius: 10px;
+      border: 2px solid #ff8c42;
+      margin-top: 20px;
+    }
+
+    .thought {
+      margin-bottom: 15px;
+      padding: 10px;
+      background: #fff8f0;
+      border-radius: 8px;
+      border-left: 5px solid #ff3c38;
+    }
+
+    footer {
+      text-align: center;
+      padding: 10px;
+      background: #ff8c42;
+      color: white;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  🐾 Animal Rescuing System Dashboard
+</header>
+
+<div class="dashboard">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>Rescued Animals</h2>
+    <div id="animal-list"></div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="details">
+    <!-- Animated Graph -->
+    <div class="graph-section">
+      <h2>📊 Rescue Statistics</h2>
+      <canvas id="rescueChart"></canvas>
+    </div>
+
+    <h2 id="animal-name">Select an animal</h2>
+    <div class="info" id="animal-info">
+      <p><strong>Species:</strong> -</p>
+      <p><strong>Status:</strong> -</p>
+      <p><strong>Health Issues:</strong> -</p>
+      <p><strong>Rescue Date:</strong> -</p>
+      <p><strong>Location:</strong> -</p>
+    </div>
+
+    <h3>Tracking</h3>
+    <div id="map"></div>
+
+    <!-- Rescuer Thoughts -->
+    <div class="thoughts">
+      <h2>💬 Rescuer Thoughts</h2>
+      <div id="thoughts-list"></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  © 2025 Animal Rescuing System | Saving Lives, One Paw at a Time
+</footer>
+
+<script>
+  // Animal Data
+  const animals = [
+    {
+      id: 1,
+      name: "Leo",
+      species: "Lion",
+      status: "Under Care",
+      health: "Leg Injury - Recovering",
+      rescueDate: "2025-09-01",
+      location: {lat: 34.05, lng: -118.25}
+    },
+    {
+      id: 2,
+      name: "Maya",
+      species: "Elephant",
+      status: "Need Care",
+      health: "Tusks Damaged - Needs Monitoring",
+      rescueDate: "2025-08-20",
+      location: {lat: 28.61, lng: 77.20}
+    },
+    {
+      id: 3,
+      name: "Rocky",
+      species: "Dog",
+      status: "Rescued",
+      health: "Previously Malnourished - Healthy",
+      rescueDate: "2025-07-15",
+      location: {lat: 40.71, lng: -74.00}
+    },
+    {
+      id: 4,
+      name: "Kiki",
+      species: "Parrot",
+      status: "Injured",
+      health: "Wing Injury - Healing",
+      rescueDate: "2025-06-05",
+      location: {lat: -33.87, lng: 151.21}
+    },
+    {
+      id: 5,
+      name: "Simba",
+      species: "Tiger",
+      status: "Need Rescue",
+      health: "Trapped - Needs Immediate Help",
+      rescueDate: "2025-09-05",
+      location: {lat: 19.07, lng: 72.87}
+    }
+  ];
+
+  const rescuerThoughts = [
+    "Leo was scared at first, but now he’s playful and healing well.",
+    "Maya needs constant monitoring but is safe now.",
+    "Rocky found a loving family and is healthier than ever!",
+    "Kiki is under treatment and improving.",
+    "Simba needs urgent rescue from the wild."
+  ];
+
+  const animalList = document.getElementById("animal-list");
+  const animalName = document.getElementById("animal-name");
+  const animalInfo = document.getElementById("animal-info");
+  const mapDiv = document.getElementById("map");
+  const thoughtsList = document.getElementById("thoughts-list");
+
+  let selectedAnimal = null;
+  let marker = null;
+  let map = null;
+
+  // Generate Animal Cards
+  animals.forEach(animal => {
+    const card = document.createElement("div");
+    card.className = "animal-card";
+    card.innerHTML = `<h3>${animal.name}</h3><p>${animal.species}</p>`;
+    card.onclick = () => showAnimalDetails(animal);
+    animalList.appendChild(card);
+  });
+
+  // Show details for selected animal
+  function showAnimalDetails(animal) {
+    selectedAnimal = animal;
+    animalName.textContent = animal.name;
+    animalInfo.innerHTML = `
+      <p><strong>Species:</strong> ${animal.species}</p>
+      <p><strong>Status:</strong> ${animal.status}</p>
+      <p><strong>Health Issues:</strong> ${animal.health}</p>
+      <p><strong>Rescue Date:</strong> ${animal.rescueDate}</p>
+      <p><strong>Location:</strong> ${animal.location.lat.toFixed(2)}, ${animal.location.lng.toFixed(2)}</p>
+    `;
+    initMap(animal.location.lat, animal.location.lng);
+  }
+
+  // Initialize Google Map with tracking
+  function initMap(lat, lng) {
+    mapDiv.innerHTML = ""; 
+    map = new google.maps.Map(mapDiv, {
+      center: {lat, lng},
+      zoom: 6
+    });
+    marker = new google.maps.Marker({
+      position: {lat, lng},
+      map: map,
+      title: selectedAnimal.name
+    });
+
+    setInterval(() => {
+      if (selectedAnimal) {
+        selectedAnimal.location.lat += (Math.random() - 0.5) * 0.01;
+        selectedAnimal.location.lng += (Math.random() - 0.5) * 0.01;
+        marker.setPosition(selectedAnimal.location);
+        map.setCenter(selectedAnimal.location);
+        animalInfo.querySelector("p:last-child").innerHTML =
+          `<strong>Location:</strong> ${selectedAnimal.location.lat.toFixed(2)}, ${selectedAnimal.location.lng.toFixed(2)}`;
+      }
+    }, 5000);
+  }
+
+  // Rescue Statistics Graph
+  const ctx = document.getElementById("rescueChart");
+  new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["Rescued", "Injured", "Need Rescue", "Under Treatment", "Need Care"],
+      datasets: [{
+        data: [15, 8, 5, 7, 4],
+        backgroundColor: ["#ff8c42", "#ff3c38", "#ffd166", "#6a994e", "#3a86ff"],
+        hoverOffset: 10
+      }]
+    },
+    options: {
+      responsive: true,
+      animation: {
+        animateScale: true,
+        animateRotate: true
+      }
+    }
+  });
+
+  // Show Rescuer Thoughts
+  rescuerThoughts.forEach(thought => {
+    const div = document.createElement("div");
+    div.className = "thought";
+    div.textContent = thought;
+    thoughtsList.appendChild(div);
+  });
+</script>
+
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"></script>
+
+</body>
+</html>
