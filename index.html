@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Animal Rescue Dashboard</title>
+
+<!-- Leaflet (maps) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-sA+e2b8bG3b9g6bQyQXh5k1QbVxG8Q0K8gJw8gqUq6k=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-o9N1j8gz3EN6k6XT5m0JQ9D1H6fYb2u2p4kM0R0f8Rk=" crossorigin=""></script>
+
+<!-- Chart.js (animated charts) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+  :root{
+    --bg: #FFF9F0;
+    --card: #FFF6E8;
+    --accent1: #FF6B35; /* coral */
+    --accent2: #FFA94D; /* warm orange */
+    --accent3: #FFD166; /* mellow yellow */
+    --muted: #6B6B6B;
+    --glass: rgba(255,255,255,0.6);
+    --success: #32A852;
+    --danger: #D64545;
+    --shadow: 0 8px 24px rgba(0,0,0,0.08);
+    --radius: 14px;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+  body{background: linear-gradient(160deg, #FFF9F0 0%, #FFF2E6 50%, #FFF9E6 100%); color:#1a1a1a; padding:18px;}
+
+  header{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    padding:18px;
+    border-radius:16px;
+    background: linear-gradient(90deg,var(--accent1), var(--accent2));
+    color:white;
+    box-shadow: var(--shadow);
+    margin-bottom:18px;
+  }
+  header h1{margin:0;font-size:20px;letter-spacing:0.3px}
+  header p{margin:0;opacity:0.95;font-size:13px}
+
+  .layout{
+    display:grid;
+    grid-template-columns: 340px 1fr 420px;
+    gap:18px;
+    height: calc(100vh - 132px);
+  }
+
+  /* LEFT: list */
+  .panel{
+    background:var(--card);
+    border-radius:var(--radius);
+    padding:14px;
+    box-shadow: var(--shadow);
+    overflow:auto;
+  }
+
+  .controls{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .controls input, .controls select{
+    padding:10px 12px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);flex:1;min-width:120px;
+    background:transparent;
+  }
+  .controls button{
+    background:transparent;border:2px solid rgba(0,0,0,0.06);padding:9px 12px;border-radius:10px;cursor:pointer;
+  }
+
+  .animal-card{
+    background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.8));
+    border-radius:12px;padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:center;cursor:pointer;
+    transition:transform .14s ease, box-shadow .14s ease;
+    border:1px solid rgba(0,0,0,0.03);
+  }
+  .animal-card:hover{transform:translateY(-4px);box-shadow:0 10px 30px rgba(0,0,0,0.06)}
+  .animal-avatar{
+    width:72px;height:72px;border-radius:12px;background:linear-gradient(135deg,var(--accent3), var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#522d00;
+    font-size:20px;
+  }
+  .animal-meta h3{margin:0;font-size:16px}
+  .animal-meta p{margin:6px 0 0;font-size:13px;color:var(--muted)}
+
+  .badge{display:inline-block;padding:6px 8px;border-radius:999px;font-size:12px}
+  .badge.status-under{background:rgba(255,107,53,0.12);color:var(--accent1)}
+  .badge.status-adopted{background:rgba(50,168,82,0.12);color:var(--success)}
+  .badge.status-injured{background:rgba(214,69,69,0.12);color:var(--danger)}
+
+  /* CENTER: map + details */
+  .center{
+    display:flex;flex-direction:column;gap:12px;height:100%;
+  }
+
+  .map-panel{
+    flex:1;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);
+    border:1px solid rgba(0,0,0,0.04);
+  }
+  #map {width:100%;height:100%;min-height:340px}
+
+  .details-panel{
+    background:linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9));
+    padding:14px;border-radius:12px;box-shadow:var(--shadow);display:flex;gap:14px;align-items:flex-start;
+  }
+  .details-left{flex:1}
+  .details-right{width:260px;flex-shrink:0}
+
+  .info-row{display:flex;justify-content:space-between;margin-bottom:6px}
+  .info-row strong{font-weight:600}
+  .health-issue{background:linear-gradient(90deg,#fff0f0,#fff5e6);padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,0.03)}
+  .rescuer-note{background:#fffef9;padding:10px;border-radius:10px;border-left:4px solid var(--accent2);margin-top:8px}
+
+  /* RIGHT: stats and chart */
+  .stats{
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;
+  }
+  .stat-card{
+    background:linear-gradient(180deg, #ffffff, rgba(255,255,255,0.95));
+    padding:12px;border-radius:12px;box-shadow:var(--shadow);text-align:center;
+  }
+  .stat-card h4{margin:0;font-size:14px;color:var(--muted)}
+  .stat-card p{margin:6px 0 0;font-size:22px;font-weight:700}
+
+  .chart-card{background:var(--card);padding:12px;border-radius:12px;box-shadow:var(--shadow)}
+  .log-list{margin-top:12px;max-height:180px;overflow:auto}
+  .log-item{padding:10px;border-radius:10px;background:#fff;margin-bottom:8px;border-left:4px solid rgba(0,0,0,0.04)}
+  .small{font-size:12px;color:var(--muted)}
+
+  footer{margin-top:12px;font-size:12px;color:var(--muted)}
+  @media (max-width:1150px){
+    .layout{grid-template-columns: 1fr;grid-auto-rows:auto}
+    .center{order:2}
+    .panel{order:1}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;flex-direction:column;">
+    <h1>🐾 Animal Rescue Dashboard</h1>
+    <p>Track, manage & visualize rescued animals — live tracking, health issues and rescuer notes</p>
+  </div>
+  <div style="margin-left:auto;text-align:right;">
+    <div style="font-weight:700;font-size:13px">Total animals</div>
+    <div id="top-count" style="font-size:20px;font-weight:800">0</div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- LEFT: animal list + filters -->
+  <div class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-weight:700">Rescued / Active Animals</div>
+      <div class="small">Updated live</div>
+    </div>
+
+    <div class="controls">
+      <input id="search" placeholder="Search by name or note..." />
+      <select id="species">
+        <option value="">All species</option>
+      </select>
+      <select id="status">
+        <option value="">All status</option>
+      </select>
+      <button id="add-sim">+ Simulate</button>
+    </div>
+
+    <div id="list"></div>
+  </div>
+
+  <!-- CENTER: map & selected animal details -->
+  <div class="center">
+    <div class="map-panel" id="map-panel">
+      <div id="map"></div>
+    </div>
+
+    <div class="details-panel">
+      <div class="details-left">
+        <h3 id="detail-name">Select an animal</h3>
+        <div class="info-row"><div><strong>Species:</strong> <span id="detail-species">-</span></div><div><strong>Status:</strong> <span id="detail-status">-</span></div></div>
+        <div class="info-row"><div><strong>Rescue date:</strong> <span id="detail-date">-</span></div><div><strong>Last seen:</strong> <span id="detail-location">-</span></div></div>
+
+        <div style="margin-top:8px">
+          <strong>Health Issues</strong>
+          <div id="detail-health" class="health-issue small">-</div>
+        </div>
+
+        <div style="margin-top:10px">
+          <strong>Rescuer thoughts</strong>
+          <div id="detail-note" class="rescuer-note small">-</div>
+        </div>
+      </div>
+
+      <div class="details-right">
+        <div style="display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:10px">
+          <div style="text-align:center">
+            <div style="font-size:12px;color:var(--muted)">Last update</div>
+            <div id="last-update" style="font-weight:700">-</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;text-align:center">
+            <div class="small">Condition</div>
+            <div id="detail-condition" style="font-weight:800">-</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: stats + chart + logs -->
+  <div>
+    <div class="panel" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-weight:700">Overview</div>
+        <div class="small">Live stats</div>
+      </div>
+
+      <div class="stats" id="stats">
+        <!-- stat cards injected -->
+      </div>
+
+      <div class="chart-card">
+        <canvas id="trendChart" height="160"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="font-weight:700;margin-bottom:8px">Recent logs & rescuer notes</div>
+      <div id="logs" class="log-list">
+        <!-- logs -->
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>Tip: click an animal on the left to view details and track its live position. Tracking is simulated for demo.</footer>
+
+<script>
+/* ============================
+   Sample data (can be replaced with API data)
+   ============================ */
+const animals = [
+  {
+    id: 'A1',
+    name: 'Luna',
+    species: 'Dog',
+    status: 'Under Care',           // Under Care, Adopted, Injured, Needs Rescue, Needs Treatment
+    healthIssue: 'Fractured hind leg; X-ray required',
+    condition: 'Recovering',
+    rescueDate: '2025-08-30',
+    location: {lat: 28.7041, lng: 77.1025}, // Delhi
+    rescuer: 'Priya Sharma',
+    note: 'Found near highway, very scared but responds to treats.',
+    lastUpdated: Date.now()
+  },
+  {
+    id: 'A2',
+    name: 'Bongo',
+    species: 'Elephant',
+    status: 'In Sanctuary',
+    healthIssue: 'Malnutrition; low body weight',
+    condition: 'Stable',
+    rescueDate: '2025-06-12',
+    location: {lat: 11.0168, lng: 76.9558}, // Coimbatore
+    rescuer: 'Ramesh I.',
+    note: 'Gradual weight gain observed after feeding plan.',
+    lastUpdated: Date.now()
+  },
+  {
+    id: 'A3',
+    name: 'Milo',
+    species: 'Parrot',
+    status: 'Adopted',
+    healthIssue: 'Wing abrasion healed',
+    condition: 'Good',
+    rescueDate: '2025-05-20',
+    location: {lat: 19.0760, lng: 72.8777}, // Mumbai
+    rescuer: 'Anika Das',
+    note: 'Playful and social; prefers company.',
+    lastUpdated: Date.now()
+  },
+  {
+    id: 'A4',
+    name: 'Kira',
+    species: 'Deer',
+    status: 'Needs Treatment',
+    healthIssue: 'Deep laceration on flank; infection risk',
+    condition: 'Critical',
+    rescueDate: '2025-09-03',
+    location: {lat: 13.0827, lng: 80.2707}, // Chennai
+    rescuer: 'Forest Guard Unit 7',
+    note: 'Requires immediate vet attention. Stabilized on-site.',
+    lastUpdated: Date.now()
+  }
+];
+
+/* =========
+   Globals
+   ========= */
+let map, markers = {}, selectedId = null;
+
+/* =========
+   Helpers
+   ========= */
+function $(id){return document.getElementById(id)}
+function formatLatLng(loc){ return loc.lat.toFixed(4) + ', ' + loc.lng.toFixed(4) }
+function nowTime(){ return new Date().toLocaleString() }
+
+/* =========
+   Initialize map (Leaflet)
+   ========= */
+function initMap(){
+  map = L.map('map', {zoomControl:true}).setView([20.5937,78.9629], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  // add initial markers
+  animals.forEach(a => {
+    const m = L.marker([a.location.lat, a.location.lng], {title: a.name})
+      .addTo(map)
+      .bindPopup(`<strong>${a.name}</strong><br>${a.species}<br>${formatLatLng(a.location)}`);
+    markers[a.id] = m;
+  });
+}
+
+/* =========
+   Render left list
+   ========= */
+function populateFilters(){
+  const speciesSet = new Set(animals.map(a=>a.species));
+  const statusSet = new Set(animals.map(a=>a.status));
+  const speciesSel = $('species');
+  speciesSet.forEach(s => {
+    const opt = document.createElement('option'); opt.value = s; opt.textContent = s; speciesSel.appendChild(opt);
+  });
+  const statusSel = $('status');
+  statusSet.forEach(s => {
+    const opt = document.createElement('option'); opt.value = s; opt.textContent = s; statusSel.appendChild(opt);
+  });
+}
+
+function renderList(){
+  const q = $('search').value.trim().toLowerCase();
+  const species = $('species').value;
+  const status = $('status').value;
+  const list = $('list'); list.innerHTML = '';
+
+  const filtered = animals.filter(a=>{
+    return (q === '' || (a.name+ ' '+ a.note + ' ' + a.rescuer).toLowerCase().includes(q)) &&
+           (species ? a.species === species : true) &&
+           (status ? a.status === status : true)
+  });
+
+  if(filtered.length === 0) { list.innerHTML = '<div class="small">No animals found</div>'; return; }
+
+  filtered.forEach(a => {
+    const card = document.createElement('div'); card.className = 'animal-card';
+    card.innerHTML = `
+      <div class="animal-avatar">${a.name.charAt(0).toUpperCase()}</div>
+      <div class="animal-meta" style="flex:1">
+        <h3>${a.name} <span style="font-weight:600;color:var(--muted);font-size:13px"> — ${a.species}</span></h3>
+        <p class="small">${a.note}</p>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+          <span class="badge ${a.status.toLowerCase().includes('injured') ? 'status-injured' : a.status.toLowerCase().includes('adopt') ? 'status-adopted' : 'status-under'}">${a.status}</span>
+          <div class="small" style="margin-left:auto">${a.rescuer}</div>
+        </div>
+      </div>
+    `;
+    card.onclick = ()=> selectAnimal(a.id);
+    list.appendChild(card);
+  });
+}
+
+/* =========
+   Details pane
+   ========= */
+function selectAnimal(id){
+  const a = animals.find(x=>x.id===id);
+  if(!a) return;
+  selectedId = id;
+  $('detail-name').textContent = a.name;
+  $('detail-species').textContent = a.species;
+  $('detail-status').textContent = a.status;
+  $('detail-date').textContent = a.rescueDate;
+  $('detail-location').textContent = formatLatLng(a.location);
+  $('detail-health').textContent = a.healthIssue;
+  $('detail-note').textContent = `${a.rescuer}: ${a.note}`;
+  $('detail-condition').textContent = a.condition;
+  $('last-update').textContent = new Date(a.lastUpdated).toLocaleString();
+  $('top-count').textContent = animals.length;
+
+  // open popup and pan map
+  const mk = markers[a.id];
+  if(mk){
+    mk.openPopup();
+    map.panTo([a.location.lat, a.location.lng], {animate:true});
+  }
+}
+
+/* =========
+   Stats + Chart (Chart.js)
+   ========= */
+let trendChart, chartInterval;
+function buildStatsAndChart(){
+  const counts = computeCounts();
+  renderStats(counts);
+
+  const ctx = $('trendChart').getContext('2d');
+  const labels = generatePastLabels(10); // 10 time points
+  const data = {
+    labels,
+    datasets: [
+      {label:'Rescued', data: randomizeSeries(labels.length, counts.rescued), tension:0.4, borderWidth:2, fill:false},
+      {label:'Injured', data: randomizeSeries(labels.length, counts.injured), tension:0.4, borderWidth:2, fill:false},
+      {label:'Needs Rescue', data: randomizeSeries(labels.length, counts.needRescue), tension:0.4, borderWidth:2, fill:false},
+      {label:'Needs Treatment', data: randomizeSeries(labels.length, counts.needTreatment), tension:0.4, borderWidth:2, fill:false}
+    ]
+  };
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data,
+    options: {
+      responsive:true,
+      interaction: {mode:'index', intersect:false},
+      plugins: { legend: {position:'top'} },
+      scales: { x: { display:true }, y: { beginAtZero:true, ticks:{stepSize:1} } },
+      animation: {duration:800}
+    }
+  });
+
+  // periodically simulate small changes to animate chart
+  if(chartInterval) clearInterval(chartInterval);
+  chartInterval = setInterval(()=> {
+    // random small mutation and push to right
+    const newLabel = new Date().toLocaleTimeString();
+    trendChart.data.labels.push(newLabel);
+    if(trendChart.data.labels.length>20) trendChart.data.labels.shift();
+
+    trendChart.data.datasets.forEach(ds=>{
+      const last = ds.data[ds.data.length-1] || 0;
+      // random walk + small bias from real counts
+      const bias = {
+        'Rescued': computeCounts().rescued,
+        'Injured': computeCounts().injured,
+        'Needs Rescue': computeCounts().needRescue,
+        'Needs Treatment': computeCounts().needTreatment
+      }[ds.label] || 0;
+      let next = Math.max(0, Math.round(last + (Math.random()-0.5)*1 + (bias - last)*0.05));
+      // push and keep length
+      ds.data.push(next);
+      if(ds.data.length>20) ds.data.shift();
+    });
+    trendChart.update();
+    renderStats(computeCounts());
+  }, 3500);
+}
+
+function computeCounts(){
+  const counts = {rescued:0, injured:0, needRescue:0, needTreatment:0};
+  animals.forEach(a=>{
+    counts.rescued += (a.status.toLowerCase().includes('adopt') || a.status.toLowerCase().includes('sanctuary') || a.status.toLowerCase().includes('under care')) ? 1 : 0;
+    counts.injured += a.status.toLowerCase().includes('injured') ? 1 : 0;
+    counts.needRescue += a.status.toLowerCase().includes('needs rescue') ? 1 : 0;
+    counts.needTreatment += a.status.toLowerCase().includes('needs treatment') ? 1 : 0;
+  });
+  return counts;
+}
+
+function renderStats(counts){
+  const container = $('stats'); container.innerHTML = '';
+  const cards = [
+    {title:'Total animals', value:animals.length},
+    {title:'Under care / rescued', value:counts.rescued},
+    {title:'Injured', value:counts.injured},
+    {title:'Need treatment', value:counts.needTreatment}
+  ];
+  cards.forEach(c=>{
+    const el = document.createElement('div'); el.className = 'stat-card';
+    el.innerHTML = `<h4>${c.title}</h4><p>${c.value}</p>`;
+    container.appendChild(el);
+  });
+  // update logs
+  renderLogs();
+}
+
+/* small utils for chart */
+function generatePastLabels(n){
+  const arr=[];
+  const now = Date.now();
+  for(let i=n-1;i>=0;i--){
+    arr.push(new Date(now - i*1000*6).toLocaleTimeString());
+  }
+  return arr;
+}
+function randomizeSeries(n, base){
+  const out=[];
+  for(let i=0;i<n;i++){
+    out.push(Math.max(0, Math.round(base + (Math.random()-0.5)*2)));
+  }
+  return out;
+}
+
+/* =========
+   Logs
+   ========= */
+function renderLogs(){
+  const logs = $('logs'); logs.innerHTML = '';
+  // recent notes sorted by lastUpdated desc
+  const sorted = [...animals].sort((a,b)=>b.lastUpdated - a.lastUpdated);
+  sorted.slice(0,12).forEach(a=>{
+    const div = document.createElement('div'); div.className='log-item';
+    div.innerHTML = `<div style="display:flex;justify-content:space-between"><strong>${a.name} (${a.species})</strong><div class="small">${new Date(a.lastUpdated).toLocaleString()}</div></div>
+                     <div class="small" style="margin-top:6px">${a.rescuer}: ${a.note}</div>`;
+    logs.appendChild(div);
+  });
+}
+
+/* =========
+   Simulate movement (live-tracking)
+   ========= */
+let moveInterval;
+function startMovementSimulation(){
+  if(moveInterval) clearInterval(moveInterval);
+  moveInterval = setInterval(()=>{
+    // move each marker a bit, update lastUpdated
+    animals.forEach(a=>{
+      // small perturbation (simulate walking/transport)
+      a.location.lat += (Math.random()-0.5)*0.02;
+      a.location.lng += (Math.random()-0.5)*0.02;
+      a.lastUpdated = Date.now();
+      // update marker
+      const mk = markers[a.id];
+      if(mk){
+        mk.setLatLng([a.location.lat, a.location.lng]);
+        mk.setPopupContent(`<strong>${a.name}</strong><br>${a.species}<br>${formatLatLng(a.location)}`);
+      }
+    });
+    // refresh selected details if currently selected
+    if(selectedId){ 
+      const a = animals.find(x=>x.id===selectedId);
+      if(a){
+        $('detail-location').textContent = formatLatLng(a.location);
+        $('last-update').textContent = new Date(a.lastUpdated).toLocaleString();
+      }
+    }
+    renderList();
+  }, 5000);
+}
+
+/* =========
+   Add small feature: simulate add/update for demo
+   ========= */
+$('add-sim').addEventListener('click', ()=> {
+  // create a simulated rescue near a random animal
+  const base = animals[Math.floor(Math.random()*animals.length)];
+  const newA = {
+    id: 'S' + Math.floor(Math.random()*10000),
+    name: 'Sim-' + Math.floor(Math.random()*90+10),
+    species: ['Dog','Cat','Deer','Parrot','Monkey'][Math.floor(Math.random()*5)],
+    status: ['Needs Rescue','Needs Treatment','Under Care'][Math.floor(Math.random()*3)],
+    healthIssue: 'Simulated issue: needs check',
+    condition: 'Unknown',
+    rescueDate: new Date().toISOString().slice(0,10),
+    location: {lat: base.location.lat + (Math.random()-0.5)*0.5, lng: base.location.lng + (Math.random()-0.5)*0.5},
+    rescuer: 'Volunteer Sim',
+    note: 'Auto-created simulation for demo',
+    lastUpdated: Date.now()
+  };
+  animals.push(newA);
+  const m = L.marker([newA.location.lat, newA.location.lng], {title: newA.name})
+    .addTo(map)
+    .bindPopup(`<strong>${newA.name}</strong><br>${newA.species}<br>${formatLatLng(newA.location)}`);
+  markers[newA.id] = m;
+  populateFilters(); renderList(); buildStatsAndChart();
+});
+
+/* =========
+   Events / init
+   ========= */
+window.addEventListener('load', ()=>{
+  initMap();
+  populateFilters();
+  renderList();
+  buildStatsAndChart();
+  startMovementSimulation();
+  // event bindings
+  $('search').addEventListener('input', renderList);
+  $('species').addEventListener('change', renderList);
+  $('status').addEventListener('change', renderList);
+
+  // set initial selection if any
+  if(animals.length) selectAnimal(animals[0].id);
+});
+
+/* =========
+   Cleanup when leaving (clear intervals)
+   ========= */
+window.addEventListener('beforeunload', ()=> {
+  if(moveInterval) clearInterval(moveInterval);
+  if(chartInterval) clearInterval(chartInterval);
+});
+</script>
+</body>
+</html>
